@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Reunioes.Core/Reunioes.Core.csproj" />
+  <Project Path="Reunioes.Desktop/Reunioes.Desktop.csproj" />
+</Solution>
