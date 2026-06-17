@@ -1,265 +1,202 @@
 ﻿using System;
-using System.Drawing;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using Reunioes.Core.Models;
 using Reunioes.Core.Services;
 
 namespace Reunioes.Desktop
 {
-    public partial class MainForm : Form
+    public partial class MainWindow : Form
     {
         private readonly SalaService _salaService;
         private readonly ReservaService _reservaService;
-        private int _paginaAtual = 1;
 
-        // Componentes visuais
         private DataGridView dgvSalas;
-        private TextBox txtBuscaNome;
+        private TextBox txtFiltroSala;
         private TextBox txtNomeSala;
-        private NumericUpDown numAndar;
-        private NumericUpDown numAssentos;
+        private NumericUpDown nudAndar;
+        private NumericUpDown nudAssentos;
+        private Button btnCriarSala;
+        private Button btnVerHorasLivres;
+        private DataGridView dgvReservas;
+        private ComboBox cbSalasDisponiveis;
         private DateTimePicker dtpInicio;
         private DateTimePicker dtpFim;
-        private Label lblTotalReunioes;
-        private Button btnSalvarSala;
-        private Button btnReservar;
-        private Button btnProximo;
-        private Button btnAnterior;
-        private Label lblBusca, lblNome, lblAndar, lblAssentos, lblInicio, lblFim, lblTituloSala, lblTituloReserva;
+        private Button btnAgendar;
+        private DateTimePicker dtpConsultaData;
+        private Button btnConsultarReservas;
 
-        public MainForm()
+        public MainWindow()
         {
-            // Executa a montagem dos componentes diretamente aqui
-            CriarComponentesManualmente();
+            InitializeComponent(); // Chama o método do Designer.cs
 
             _salaService = new SalaService();
             _reservaService = new ReservaService();
-            CarregarDados();
+
+            ConfigurarComponentesManualmente();
+
+            try
+            {
+                CarregarDadosIniciais();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro de conexão: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void CriarComponentesManualmente()
+        private void CarregarDadosIniciais()
         {
-            this.dgvSalas = new DataGridView();
-            this.txtBuscaNome = new TextBox();
-            this.txtNomeSala = new TextBox();
-            this.numAndar = new NumericUpDown();
-            this.numAssentos = new NumericUpDown();
-            this.dtpInicio = new DateTimePicker();
-            this.dtpFim = new DateTimePicker();
-            this.lblTotalReunioes = new Label();
-            this.btnSalvarSala = new Button();
-            this.btnReservar = new Button();
-            this.btnProximo = new Button();
-            this.btnAnterior = new Button();
+            List<Sala> salas = _salaService.ListarSalas(txtFiltroSala.Text, pagina: 1);
+            dgvSalas.DataSource = null;
+            dgvSalas.DataSource = salas;
 
-            this.lblBusca = new Label();
-            this.lblNome = new Label();
-            this.lblAndar = new Label();
-            this.lblAssentos = new Label();
-            this.lblInicio = new Label();
-            this.lblFim = new Label();
-            this.lblTituloSala = new Label();
-            this.lblTituloReserva = new Label();
+            cbSalasDisponiveis.DataSource = null;
+            cbSalasDisponiveis.DataSource = salas;
+            cbSalasDisponiveis.DisplayMember = "Nome";
+            cbSalasDisponiveis.ValueMember = "Id";
 
-            this.SuspendLayout();
-
-            // Configurações da Janela Principal
-            this.ClientSize = new Size(920, 520);
-            this.Text = "SAV - Sistema de Gerenciamento de Reuniões";
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
-
-            // Painel de Busca e Grid
-            this.lblBusca.Text = "Buscar Sala por Nome:";
-            this.lblBusca.Location = new Point(20, 20);
-            this.lblBusca.Size = new Size(150, 20);
-
-            this.txtBuscaNome.Location = new Point(20, 40);
-            this.txtBuscaNome.Size = new Size(400, 23);
-            this.txtBuscaNome.TextChanged += new EventHandler(this.txtBuscaNome_TextChanged);
-
-            this.dgvSalas.Location = new Point(20, 75);
-            this.dgvSalas.Size = new Size(440, 340);
-            this.dgvSalas.AllowUserToAddRows = false;
-            this.dgvSalas.AllowUserToDeleteRows = false;
-            this.dgvSalas.ReadOnly = true;
-            this.dgvSalas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            this.dgvSalas.MultiSelect = false;
-            this.dgvSalas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-
-            // Botões de Paginação
-            this.btnAnterior.Text = "◀ Anterior";
-            this.btnAnterior.Location = new Point(20, 425);
-            this.btnAnterior.Size = new Size(100, 30);
-            this.btnAnterior.Click += new EventHandler(this.btnAnterior_Click);
-
-            this.btnProximo.Text = "Próximo ▶";
-            this.btnProximo.Location = new Point(360, 425);
-            this.btnProximo.Size = new Size(100, 30);
-            this.btnProximo.Click += new EventHandler(this.btnProximo_Click);
-
-            // Cadastro de Sala
-            this.lblTituloSala.Text = "CADASTRAR NOVA SALA";
-            this.lblTituloSala.Font = new Font(this.Font, FontStyle.Bold);
-            this.lblTituloSala.Location = new Point(500, 20);
-            this.lblTituloSala.Size = new Size(200, 20);
-
-            this.lblNome.Text = "Nome da Sala *";
-            this.lblNome.Location = new Point(500, 45);
-            this.lblNome.Size = new Size(100, 15);
-
-            this.txtNomeSala.Location = new Point(500, 65);
-            this.txtNomeSala.Size = new Size(380, 23);
-
-            this.lblAndar.Text = "Andar *";
-            this.lblAndar.Location = new Point(500, 95);
-            this.lblAndar.Size = new Size(80, 15);
-
-            this.numAndar.Location = new Point(500, 115);
-            this.numAndar.Size = new Size(170, 23);
-
-            this.lblAssentos.Text = "Assentos *";
-            this.lblAssentos.Location = new Point(710, 95);
-            this.lblAssentos.Size = new Size(100, 15);
-
-            this.numAssentos.Location = new Point(710, 115);
-            this.numAssentos.Size = new Size(170, 23);
-            this.numAssentos.Minimum = 1;
-
-            this.btnSalvarSala.Text = "Salvar Sala";
-            this.btnSalvarSala.Location = new Point(500, 150);
-            this.btnSalvarSala.Size = new Size(380, 35);
-            this.btnSalvarSala.Click += new EventHandler(this.btnSalvarSala_Click);
-
-            // Reserva de Horários
-            this.lblTituloReserva.Text = "RESERVAR SALA SELECIONADA";
-            this.lblTituloReserva.Font = new Font(this.Font, FontStyle.Bold);
-            this.lblTituloReserva.Location = new Point(500, 215);
-            this.lblTituloReserva.Size = new Size(250, 20);
-
-            this.lblInicio.Text = "Data/Hora de Início *";
-            this.lblInicio.Location = new Point(500, 240);
-            this.lblInicio.Size = new Size(150, 15);
-
-            this.dtpInicio.Location = new Point(500, 260);
-            this.dtpInicio.Size = new Size(380, 23);
-            this.dtpInicio.Format = DateTimePickerFormat.Custom;
-            this.dtpInicio.CustomFormat = "dd/MM/yyyy HH:mm";
-
-            this.lblFim.Text = "Data/Hora de Fim *";
-            this.lblFim.Location = new Point(500, 295);
-            this.lblFim.Size = new Size(150, 15);
-
-            this.dtpFim.Location = new Point(500, 315);
-            this.dtpFim.Size = new Size(380, 23);
-            this.dtpFim.Format = DateTimePickerFormat.Custom;
-            this.dtpFim.CustomFormat = "dd/MM/yyyy HH:mm";
-
-            this.btnReservar.Text = "Confirmar Reserva";
-            this.btnReservar.Location = new Point(500, 355);
-            this.btnReservar.Size = new Size(380, 40);
-            this.btnReservar.BackColor = Color.LightGreen;
-            this.btnReservar.Click += new EventHandler(this.btnReservar_Click);
-
-            this.lblTotalReunioes.Text = "Reuniões nos últimos 7 dias: 0";
-            this.lblTotalReunioes.Location = new Point(500, 432);
-            this.lblTotalReunioes.Size = new Size(380, 20);
-
-            // Injeta os controles no formulário
-            this.Controls.Add(this.lblBusca);
-            this.Controls.Add(this.txtBuscaNome);
-            this.Controls.Add(this.dgvSalas);
-            this.Controls.Add(this.btnAnterior);
-            this.Controls.Add(this.btnProximo);
-            this.Controls.Add(this.lblTituloSala);
-            this.Controls.Add(this.lblNome);
-            this.Controls.Add(this.txtNomeSala);
-            this.Controls.Add(this.lblAndar);
-            this.Controls.Add(this.numAndar);
-            this.Controls.Add(this.lblAssentos);
-            this.Controls.Add(this.numAssentos);
-            this.Controls.Add(this.btnSalvarSala);
-            this.Controls.Add(this.lblTituloReserva);
-            this.Controls.Add(this.lblInicio);
-            this.Controls.Add(this.dtpInicio);
-            this.Controls.Add(this.lblFim);
-            this.Controls.Add(this.dtpFim);
-            this.Controls.Add(this.btnReservar);
-            this.Controls.Add(this.lblTotalReunioes);
-
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            dgvReservas.DataSource = null;
+            dgvReservas.DataSource = _reservaService.ConsultarReservas(null, null);
         }
 
-        private void CarregarDados()
-        {
-            dgvSalas.DataSource = _salaService.ListarSalas(txtBuscaNome.Text, _paginaAtual);
-            lblTotalReunioes.Text = $"Reuniões agendadas nos últimos 7 dias: {_salaService.ObterTotalReunioesUltimos7Dias()}";
-        }
-
-        private void btnSalvarSala_Click(object sender, EventArgs e)
+        private void btnCriarSala_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNomeSala.Text))
             {
-                MessageBox.Show("O campo Nome da sala é obrigatório.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("O nome da sala é obrigatório.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            var sala = new Sala
+            var novaSala = new Sala
             {
-                Nome = txtNomeSala.Text,
-                Andar = (int)numAndar.Value,
-                QuantidadeAssentos = (int)numAssentos.Value
+                Nome = txtNomeSala.Text.Trim(),
+                Andar = (int)nudAndar.Value,
+                QuantidadeAssentos = (int)nudAssentos.Value
             };
 
-            _salaService.Criar(sala);
-            MessageBox.Show("Sala cadastrada com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _salaService.Criar(novaSala);
+            MessageBox.Show("Sala criada com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
             txtNomeSala.Clear();
-            CarregarDados();
+            nudAndar.Value = 0;
+            nudAssentos.Value = 1;
+
+            CarregarDadosIniciais();
         }
 
-        private void btnReservar_Click(object sender, EventArgs e)
+        private void btnVerHorasLivres_Click(object sender, EventArgs e)
         {
-            if (dgvSalas.CurrentRow == null)
+            if (dgvSalas.CurrentRow?.DataBoundItem is Sala salaSelecionada)
             {
-                MessageBox.Show("Selecione uma sala na tabela antes.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                DateTime dataSelecionada = dtpConsultaData.Value;
+                double horasLivres = _salaService.CalcularHorasLivresNoDia(salaSelecionada.Id, dataSelecionada);
+
+                MessageBox.Show($"A sala '{salaSelecionada.Nome}' possui {horasLivres:F1} horas livres no dia {dataSelecionada.ToShortDateString()}.",
+                                "Disponibilidade", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Selecione uma sala na tabela da esquerda primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void txtFiltroSala_TextChanged(object sender, EventArgs e)
+        {
+            dgvSalas.DataSource = _salaService.ListarSalas(txtFiltroSala.Text, pagina: 1);
+        }
+
+        private void btnAgendar_Click(object sender, EventArgs e)
+        {
+            if (cbSalasDisponiveis.SelectedValue == null)
+            {
+                MessageBox.Show("Selecione uma sala para agendar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            int salaId = (int)dgvSalas.CurrentRow.Cells["Id"].Value;
-
-            var reserva = new Reserva
+            var novaReserva = new Reserva
             {
-                SalaId = salaId,
-                Inicio = dtpInicio.Value,
-                Fim = dtpFim.Value
+                SalaId = (int)cbSalasDisponiveis.SelectedValue,
+                Inicio = DateTime.SpecifyKind(dtpInicio.Value, DateTimeKind.Unspecified),
+                Fim = DateTime.SpecifyKind(dtpFim.Value, DateTimeKind.Unspecified)
             };
 
-            string resultado = _reservaService.AgendarReserva(reserva);
-            MessageBox.Show(resultado == "Sucesso" ? "Reserva cadastrada!" : resultado);
-            CarregarDados();
-        }
+            string resultado = _reservaService.AgendarReserva(novaReserva);
 
-        private void btnProximo_Click(object sender, EventArgs e)
-        {
-            _paginaAtual++;
-            CarregarDados();
-        }
-
-        private void btnAnterior_Click(object sender, EventArgs e)
-        {
-            if (_paginaAtual > 1)
+            if (resultado == "Sucesso")
             {
-                _paginaAtual--;
-                CarregarDados();
+                MessageBox.Show("Reserva realizada com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                CarregarDadosIniciais();
+            }
+            else
+            {
+                MessageBox.Show(resultado, "Erro de Validação", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void txtBuscaNome_TextChanged(object sender, EventArgs e)
+        private void btnConsultarReservas_Click(object sender, EventArgs e)
         {
-            _paginaAtual = 1;
-            CarregarDados();
+            int? salaIdFiltro = null;
+            if (cbSalasDisponiveis.SelectedValue != null)
+            {
+                salaIdFiltro = (int)cbSalasDisponiveis.SelectedValue;
+            }
+
+            DateTime dataFiltro = dtpConsultaData.Value;
+            dgvReservas.DataSource = _reservaService.ConsultarReservas(salaIdFiltro, dataFiltro);
+        }
+
+        private void ConfigurarComponentesManualmente()
+        {
+            this.Text = "Gerenciador de Reuniões e Salas";
+            this.Size = new System.Drawing.Size(900, 600);
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            GroupBox gbSalas = new GroupBox { Text = "Gestão de Salas", Location = new System.Drawing.Point(15, 15), Size = new System.Drawing.Size(420, 530) };
+            Label lblNomeSala = new Label { Text = "Nome da Sala:", Location = new System.Drawing.Point(15, 25), Width = 90 };
+            txtNomeSala = new TextBox { Location = new System.Drawing.Point(110, 22), Width = 150 };
+            Label lblAndar = new Label { Text = "Andar:", Location = new System.Drawing.Point(15, 55), Width = 50 };
+            nudAndar = new NumericUpDown { Location = new System.Drawing.Point(110, 52), Width = 60, Minimum = -2, Maximum = 50 };
+            Label lblAssentos = new Label { Text = "Assentos:", Location = new System.Drawing.Point(15, 85), Width = 70 };
+            nudAssentos = new NumericUpDown { Location = new System.Drawing.Point(110, 82), Width = 60, Minimum = 1, Maximum = 500, Value = 1 };
+            btnCriarSala = new Button { Text = "Adicionar Sala", Location = new System.Drawing.Point(280, 21), Size = new System.Drawing.Size(120, 83) };
+            btnCriarSala.Click += btnCriarSala_Click;
+            Label lblLinha = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(15, 120), Size = new System.Drawing.Size(390, 2) };
+            Label lblFiltro = new Label { Text = "Buscar por Nome:", Location = new System.Drawing.Point(15, 135), Width = 110 };
+            txtFiltroSala = new TextBox { Location = new System.Drawing.Point(130, 132), Width = 270 };
+            txtFiltroSala.TextChanged += txtFiltroSala_TextChanged;
+            dgvSalas = new DataGridView { Location = new System.Drawing.Point(15, 165), Size = new System.Drawing.Size(385, 310), ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoGenerateColumns = true };
+            btnVerHorasLivres = new Button { Text = "Ver Horas Livres no Dia Selecionado", Location = new System.Drawing.Point(15, 485), Width = 385, Height = 30 };
+            btnVerHorasLivres.Click += btnVerHorasLivres_Click;
+
+            gbSalas.Controls.AddRange(new Control[] {
+                lblNomeSala, txtNomeSala, lblAndar, nudAndar, lblAssentos, nudAssentos, btnCriarSala,
+                lblLinha, lblFiltro, txtFiltroSala, dgvSalas, btnVerHorasLivres
+            });
+
+            GroupBox gbReservas = new GroupBox { Text = "Agendamentos & Reservas", Location = new System.Drawing.Point(450, 15), Size = new System.Drawing.Size(420, 530) };
+            Label lblSala = new Label { Text = "Selecionar Sala:", Location = new System.Drawing.Point(15, 25), Width = 100 };
+            cbSalasDisponiveis = new ComboBox { Location = new System.Drawing.Point(120, 22), Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
+            Label lblInicio = new Label { Text = "Data/Hora Início:", Location = new System.Drawing.Point(15, 55), Width = 100 };
+            dtpInicio = new DateTimePicker { Location = new System.Drawing.Point(120, 52), Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Width = 150 };
+            Label lblFim = new Label { Text = "Data/Hora Fim:", Location = new System.Drawing.Point(15, 85), Width = 100 };
+            dtpFim = new DateTimePicker { Location = new System.Drawing.Point(120, 82), Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Width = 150 };
+            btnAgendar = new Button { Text = "Confirmar Reserva", Location = new System.Drawing.Point(280, 51), Size = new System.Drawing.Size(120, 53) };
+            btnAgendar.Click += btnAgendar_Click;
+            Label lblLinha2 = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(15, 120), Size = new System.Drawing.Size(390, 2) };
+            Label lblConsulta = new Label { Text = "Filtrar por Data:", Location = new System.Drawing.Point(15, 135), Width = 90 };
+            dtpConsultaData = new DateTimePicker { Location = new System.Drawing.Point(110, 132), Format = DateTimePickerFormat.Short, Width = 130 };
+            btnConsultarReservas = new Button { Text = "Filtrar Reservas", Location = new System.Drawing.Point(250, 131), Width = 150 };
+            btnConsultarReservas.Click += btnConsultarReservas_Click;
+            dgvReservas = new DataGridView { Location = new System.Drawing.Point(15, 165), Size = new System.Drawing.Size(385, 350), ReadOnly = true, AutoGenerateColumns = true };
+
+            gbReservas.Controls.AddRange(new Control[] {
+                lblSala, cbSalasDisponiveis, lblInicio, dtpInicio, lblFim, dtpFim, btnAgendar,
+                lblLinha2, lblConsulta, dtpConsultaData, btnConsultarReservas, dgvReservas
+            });
+
+            this.Controls.Add(gbSalas);
+            this.Controls.Add(gbReservas);
         }
     }
 }

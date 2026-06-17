@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Reunioes.Core.Data;
 using Reunioes.Core.Models;
 
@@ -15,9 +16,33 @@ namespace Reunioes.Core.Services
             _context = new ReunioesDbContext();
         }
 
+        public List<Reserva> ConsultarReservas(int? salaId, DateTime? data)
+        {
+            var query = _context.Reservas.Include(r => r.Sala).AsQueryable();
+
+            if (salaId.HasValue)
+            {
+                query = query.Where(r => r.SalaId == salaId.Value);
+            }
+
+            if (data.HasValue)
+            {
+                var dataSemFuso = new DateTime(data.Value.Date.Ticks, DateTimeKind.Unspecified);
+                var proximoDia = dataSemFuso.AddDays(1);
+                query = query.Where(r => r.Inicio >= dataSemFuso && r.Inicio < proximoDia);
+            }
+
+            return query.OrderBy(r => r.Inicio).ToList();
+        }
+
         public string AgendarReserva(Reserva reserva)
         {
-            if (reserva.Inicio.Hour < 8 || reserva.Fim.Hour > 19 || (reserva.Fim.Hour == 19 && reserva.Fim.Minute > 0))
+            if (!reserva.TemHorariosValidos())
+            {
+                return "Erro: O horário de início deve ser anterior ao horário de fim.";
+            }
+
+            if (!reserva.EstaNoHorarioComercial())
             {
                 return "Erro: Horário permitido apenas entre 08:00 e 19:00.";
             }
@@ -51,7 +76,14 @@ namespace Reunioes.Core.Services
                 return "Erro: Só é permitido reagendar reservas futuras.";
             }
 
-            if (novoInicio.Hour < 8 || novoFim.Hour > 19 || (novoFim.Hour == 19 && novoFim.Minute > 0))
+            var reservaValidadora = new Reserva { Inicio = novoInicio, Fim = novoFim };
+
+            if (!reservaValidadora.TemHorariosValidos())
+            {
+                return "Erro: O novo horário de início deve ser anterior ao horário de fim.";
+            }
+
+            if (!reservaValidadora.EstaNoHorarioComercial())
             {
                 return "Erro: Horário permitido apenas entre 08:00 e 19:00.";
             }
@@ -84,6 +116,6 @@ namespace Reunioes.Core.Services
             }
         }
 
-        public List<Reserva> ListarTodas() => _context.Reservas.ToList();
+        public List<Reserva> ListarTodas() => _context.Reservas.Include(r => r.Sala).ToList();
     }
 }

@@ -15,6 +15,7 @@ namespace Reunioes.Core.Services
         {
             _context = new ReunioesDbContext();
         }
+
         public void Criar(Sala sala)
         {
             _context.Salas.Add(sala);
@@ -52,6 +53,24 @@ namespace Reunioes.Core.Services
                         .Skip((pagina - 1) * 10)
                         .Take(10)
                         .ToList();
+        }
+
+        public double CalcularHorasLivresNoDia(int salaId, DateTime data)
+        {
+            DateTime dataInicioDia = new DateTime(data.Year, data.Month, data.Day, 8, 0, 0, DateTimeKind.Unspecified);
+            DateTime dataFimDia = new DateTime(data.Year, data.Month, data.Day, 19, 0, 0, DateTimeKind.Unspecified);
+
+            var reservasDoDia = _context.Reservas
+                .Where(r => r.SalaId == salaId && r.Inicio >= dataInicioDia && r.Fim <= dataFimDia)
+                .ToList();
+
+            double totalHorasOcupadas = reservasDoDia.Sum(r => (r.Fim - r.Inicio).TotalHours);
+
+            // O limite diário útil são 11 horas (das 08:00 às 19:00)
+            double totalHorasComerciais = 11.0;
+
+            double horasLivres = totalHorasComerciais - totalHorasOcupadas;
+            return horasLivres < 0 ? 0 : horasLivres;
         }
 
         public double CalcularHorasLivres(int salaId, DateTime inicioPeriodo, DateTime fimPeriodo)
